@@ -1,0 +1,63 @@
+<!-- TODO
+    -mettre en utf-8 UTF8
+    -xml strict, doit pouvoir etre lu par n'importe quel parser xml
+    -faire la dtd
+    -integrer les commandes utilisees
+    -integrer les format heure, date, position altitude, pixnn, pixmm, uid, block
+    -owner, extra information
+-->
+
+<dump>
+    <reader>
+        <manufacturer></manufacturer>
+        <model></model>
+        <version></version>
+        <firmware></firmware>
+        <!--...-->
+    </reader>
+    
+    <misc>
+        <date></date>
+        <time></time>
+        <position></position>
+        <altitude></altitude>
+        <placename></placename>
+        <!--...-->
+    </misc>
+    
+    <taginfo>
+        <standard></standard>
+        <pixnn></pixnn>
+        <pixmm></pixmm>
+        <uid></uid>
+        <!--...-->
+    </taginfo>
+    
+    <keystore>
+        <key id=""></key>
+    </keystore>
+    
+    <keygroups>
+        <keygroup id="" name="" keyid="" />
+    </keygroups>
+    
+    <data>
+        <!--advanced tag-->
+        <applications>
+            <application uid="" keygroup="">
+                <file fid="" type="">
+                    <sector id="">
+                        <block id=""></block>
+                    </sector>
+                </file>
+            </application>
+        </applications>
+        
+        <!--basic tag-->
+        <sectors>
+            <sector id="" keygroup="">
+                <block id=""></block>
+            </sector>
+        <sectors>
+    </data>
+</dump>

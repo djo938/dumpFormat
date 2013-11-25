@@ -1,0 +1,19 @@
+MISC
+    -creer l'adresse mail dumpformat@djoproject.net
+
+XML FORMAT
+    -faire la dtd (ou xsd ?)
+    -definir le codage + strict
+    -ajouter les champs manquants si necessaire (voir dump existant pour les skipass, mobib, etc...)
+    
+API
+    faire une classe permettant de charger/decharger un dump
+        identifier un validateur (qui verifie que la dtd s'applique bien au xml chargé)
+        identifier un parser xml en python (sax ou dom)
+    mettre des add/set pour les champs
+        faire une abstraction intelligente, que ce ne soit pas bete et mechant
+        
+SOFT
+    faire une interface graphique
+        -voir s'il n'y en a pas deja des existantes (genre pour mobib extractor)
+    
