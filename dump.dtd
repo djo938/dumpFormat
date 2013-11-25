@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!ELEMENT dump (reader, environment,misc?, taginfo, keystore, keygroups, data)>
+
+<!ELEMENT reader (manufacturer, model, version, firmware)>
+<!ELEMENT manufacturer (#PCDATA) >
+<!ELEMENT model (#PCDATA) >
+<!ELEMENT version (#PCDATA) >
+<!ELEMENT firmware (#PCDATA) >
+
+<!-- environment -->
+<!ELEMENT environment (date, time, position, altitude, placename)>
+<!ELEMENT date (#PCDATA) >
+<!ELEMENT time (#PCDATA) >
+<!ELEMENT position (#PCDATA) >
+<!ELEMENT altitude (#PCDATA) >
+<!ELEMENT placename (#PCDATA) >
+
+<!-- misc -->
+<!ELEMENT misc (item*)>
+<!ELEMENT miscitem (EMPTY) >
+<!ATTLIST miscitem key ID #REQUIRED>
+<!ATTLIST miscitem value CDATA #REQUIRED>
+
+<!-- taginfo -->
+<!ELEMENT taginfo (standard, pixnn, pixmm, uid)>
+<!ELEMENT standard (#PCDATA)>
+<!ELEMENT pixnn (#PCDATA)>
+<!ELEMENT pixmm (#PCDATA)>
+<!ELEMENT uid (#PCDATA)>
+
+<!-- keystore -->
+<!ELEMENT keystore (key*)>
+<!ELEMENT key (#PCDATA)>
+<!ATTLIST key id ID #REQUIRED>
+<!ATTLIST key name CDATA #REQUIRED>
+
+<!-- keygroup -->
+<!ELEMENT keygroups (keygroup*)>
+<!ELEMENT keygroup (keyid+)>
+<!ATTLIST keygroup id ID #REQUIRED>
+<!ATTLIST keygroup name CDATA #REQUIRED>
+<!ELEMENT keyid (EMPTY)>
+<!ATTLIST keyid id IDREF #REQUIRED>
+
+<!-- data -->
+<!ELEMENT data (data*, sector*)>
+<!ATTLIST data id ID #REQUIRED>
+<!ATTLIST data keygroupid IDREF #REQUIRED>
+<!ELEMENT sector (#PCDATA)>
+<!ATTLIST sector id ID #REQUIRED>
+<!ATTLIST sector keygroupid IDREF #REQUIRED>
+

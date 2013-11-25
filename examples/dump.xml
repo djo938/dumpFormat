@@ -1,10 +1,16 @@
+<?xml version="1.0"?>
+<!DOCTYPE dump SYSTEM "dump.dtd">
+
 <!-- TODO
     -mettre en utf-8 UTF8
     -xml strict, doit pouvoir etre lu par n'importe quel parser xml
-    -faire la dtd
     -integrer les commandes utilisees
     -integrer les format heure, date, position altitude, pixnn, pixmm, uid, block
     -owner, extra information
+        -need a generic misc structure, with key/value style
+    -data structue has changed, see the python code
+    -reader information, see what extra information are available
+    -see old log to look after missing fields
 -->
 
 <dump>
