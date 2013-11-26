@@ -23,10 +23,18 @@
             #les clés doivent rester unique
             #faire une hierarchie de dico
     #be able to unset value (set to None ?)
+    #allow sub data group if data at the root ? (None group name)
+        #and the opposite allow data if subgroup ?
+    #write empty data group ?
+        #yes ?
+            #print warning ?
+    #what about the empty string everywhere?, some of them must be non empty
+    #http://docs.python.org/2/library/xml.etree.elementtree.html
 
 from exception import dumpManagerException
 import os
 import datetime
+import xml.etree.cElementTree
 
 MISC_RESERVED_KEYWORD = ["date", "time", "position", "altitude", "location", "owner"] #... complete if necessary    
 
@@ -53,13 +61,14 @@ class dumpManager(object):
     def __init__(self, filePath = None):
         self.setFilePath(filePath)
         
-        self.xml              = {}
-        self.xml["misc"]      = {}
-        self.xml["reader"]    = {}
-        self.xml["taginfo"]   = {}
-        self.xml["keystore"]  = {}
-        self.xml["keygroups"] = {}
-        self.xml["data"]      = {}
+        self.xml                = {}
+        self.xml["misc"]        = {}
+        self.xml["reader"]      = {}
+        self.xml["environment"] = {}
+        self.xml["taginfo"]     = {}
+        self.xml["keystore"]    = {}
+        self.xml["keygroups"]   = {}
+        self.xml["data"]        = dataGroup()
     
     def setFilePath(self, filePath):
         if filePath == None or type(filePath) == str or len(filePath) == 0:
@@ -97,6 +106,7 @@ class dumpManager(object):
             raise dumpManagerException("(dumpManager) setFilePath, the selected file does not exist or you don't have the correct right to read.  <"+str(fpath)+">")
             
         #TODO load the dump in xml format
+            #qlso possible with import xml
         
     def save(self, filePath = None):
         if self.filePath == None and filePath == None:
@@ -107,11 +117,62 @@ class dumpManager(object):
         else:
             fpath = self.filePath
         
-        #TODO what append if the path is invalid ?
         if not os.access(os.path.dirname(filePath), os.W_OK):
-            raise dumpManagerException("(dumpManager) save, you don't have the right to create a file here.  <"+str(filePath)+">")
+            raise dumpManagerException("(dumpManager) save, you don't have the right to create a file here. Or the path is invalid : <"+str(filePath)+">")
             
-        #TODO save the dump in xml format
+        #save the dump in xml format
+        root = cElementTree.Element("dump")
+        
+        #reader
+        reader = cElementTree.SubElement(root,"reader")
+        for k,v in self.xml["reader"].iteritems():
+            reader_sub = ET.SubElement(reader, k)
+            reader_sub.text = v
+        
+        #environment
+        env = cElementTree.SubElement(root,"environment")
+        for k,v in self.xml["environment"].iteritems():
+            env_sub = ET.SubElement(env, k)
+            env_sub.text = v
+        
+        #misc
+        misc = cElementTree.SubElement(root,"misc")
+        for k,v in self.xml["misc"].iteritems():
+            misc_sub = ET.SubElement(misc, "miscitem")
+            field2.set("key", k)
+            misc_sub.text = v
+        
+        #taginfo
+        taginfo = cElementTree.SubElement(root,"taginfo")
+        for k,v in self.xml["taginfo"].iteritems():
+            taginfo_sub = ET.SubElement(taginfo, k)
+            taginfo_sub.text = v
+        
+        #keystore
+        keystore = cElementTree.SubElement(root,"keystore")
+        for k,v in self.xml["keystore"].iteritems():
+            keystore = ET.SubElement(taginfo, "key")
+            field2.set("id", k)
+            taginfo_sub.text = v
+        
+        #keygroups
+        keygroups = cElementTree.SubElement(root,"keygroups")
+        for k,v in self.xml["keygroups"].iteritems():
+            if len(v) == 0: #does not record empty group
+                continue
+        
+            keygroup_sub = ET.SubElement(taginfo, k)
+            
+            for keyname in v:
+                keyid_sub = ET.SubElement(keygroup_sub, "keyid")
+                field2.set("id", keyname)
+        
+        #write data
+        self.xml["data"]._toXML(root)
+        
+        tree = ET.ElementTree(root)
+        tree.write(fpath)
+        
     
     ### misc information
     
@@ -119,16 +180,12 @@ class dumpManager(object):
         if owner == None or type(owner) == str:
             raise dumpManagerException("(dumpManager) setOwner, the owner must be a valid string")
     
-        self.xml["misc"]["owner"] = owner
+        self.xml["environment"]["owner"] = owner
     
     def addExtraInformation(self, informationName, informationValue):
         if informationName == None or type(informationName) == str:
             raise dumpManagerException("(dumpManager) setOwner, the information name must be a valid string")
-        
-        if informationName in MISC_RESERVED_KEYWORD:
-            #TODO call the corresponding method
-            pass #TODO
-        
+
         self.xml["misc"][informationName] = str(informationValue)
 
     ### position/location informations
@@ -137,13 +194,13 @@ class dumpManager(object):
         if locationDescription == None or type(locationDescription) == str:
             raise dumpManagerException("(dumpManager) setLocation, the location must be a valid string")
     
-        self.xml["misc"]["location"] = locationDescription
+        self.xml["environment"]["location"] = locationDescription
         
     def setAltitude(self, altitude):
         if altitude == None or type(altitude) != int or altitude < -10000 or altitude > 10000:
             raise dumpManagerException("(dumpManager) setAltitude, the owner must be a valid string")
     
-        self.xml["misc"]["location"] = str(altitude)
+        self.xml["environment"]["location"] = str(altitude)
         
     def setPosition(self, coord):
         
@@ -151,7 +208,7 @@ class dumpManager(object):
         #50.750359,3.816833 (maps)
         #XXX ??? (format gpsd)
         
-        pass #TODO
+        self.xml["environment"]["position"] = str(coord)
     
     ### date/time information
     
@@ -159,33 +216,33 @@ class dumpManager(object):
         if date == None or not isinstance(date, datetime.date):
             raise dumpManagerException("(dumpManager) setDate, the date must be an instance of datetime.date") 
         
-        self.xml["misc"]["date"] = date.isoformat()
+        self.xml["environment"]["date"] = date.isoformat()
         
     def setTime(self, time):
         if time == None or not isinstance(time, datetime.time):
             raise dumpManagerException("(dumpManager) setTime, the time must be an instance of datetime.time") 
         
-        self.xml["misc"]["time"] = time.isoformat()
+        self.xml["environment"]["time"] = time.isoformat()
         
     def setDateTime(self, dtime):
         if dtime == None or not isinstance(dtime, datetime.datetime):
             raise dumpManagerException("(dumpManager) setDateTime, the dtime must be an instance of datetime.datetime")
         
-        self.xml["misc"]["date"] = dtime.date().isoformat()
-        self.xml["misc"]["time"] = dtime.time().isoformat()
+        self.xml["environment"]["date"] = dtime.date().isoformat()
+        self.xml["environment"]["time"] = dtime.time().isoformat()
         
     def setCurrentDate(self):
         d = datetime.now()
-        self.xml["misc"]["date"] = d.date().isoformat()
+        self.xml["environment"]["date"] = d.date().isoformat()
         
     def setCurrentTime(self):
         d = datetime.now()
-        self.xml["misc"]["time"] = d.time().isoformat()
+        self.xml["environment"]["time"] = d.time().isoformat()
         
     def setCurrentDatetime(self):
         d = datetime.now()
-        self.xml["misc"]["date"] = d.date().isoformat()
-        self.xml["misc"]["time"] = d.time().isoformat()
+        self.xml["environment"]["date"] = d.date().isoformat()
+        self.xml["environment"]["time"] = d.time().isoformat()
     
     ### tag information
     
@@ -249,26 +306,71 @@ class dumpManager(object):
         self.xml["keystore"][keyName] = byteListToString(value)
         
     def createKeyGroup(self, keyGroupName):
-        pass #TODO
+        if version == None or type(version) == str:
+            raise dumpManagerException("(dumpManager) createKeyGroup, the version must be a valid string")
+
+        self.xml["keygroups"][keyGroupName] = []
         
-    def associateKeyAndGroup(self, keyName, keyGroupName, keyID):
-        #TODO keyName must exist
-        #TODO keyGroupName must exist
+    def associateKeyAndGroup(self, keyName, keyGroupName):
+        #keyGroupName must exist
+        if keyGroupName not in self.xml["keygroups"]:
+            raise dumpManagerException("(dumpManager) associateKeyAndGroup, the group name does not exist")
+        
+        #keyName must exist
+        if keyName not in self.xml["keystore"]:
+            raise dumpManagerException("(dumpManager) associateKeyAndGroup, the key name does not exist")
     
-        pass #TODO associate
+        self.xml["keygroups"][keyGroupName].append(keyName)
         
     ### data management
     
-    def addDataGroup(self, groupName, groupID = None):
-        pass #TODO
+    def addDataGroup(self, groupName):
+        if groupName == None or type(version) == str:
+            raise dumpManagerException("(dumpManager) addDataGroup, the group name must be a valid string")
+            
+        self.xml["data"].addSubgroup(groupName)
     
-    def addGroupToGroup(self, parentGroupName, childGroupName):
-        pass #TODO 
-    
-    def addDataSector(self, sectorID, data, parentGroupName = None):
+    def addDataSector(self, sectorID, data):
         if not isAValidByteList(data):
-            raise dumpManagerException("(dumpManager) isAValidByteList, the data must be a non empty byte list")
+            raise dumpManagerException("(dumpManager) addDataSector, the data must be a non empty byte list")
     
-        pass #TODO
+        #None key is already in the self.xml["data"][] ?
+        self.xml["data"].addDataSector(sectorID, data)
+
+class dataGroup(object):
+    def __init__(self):
+        self.subGroup = {}
+        self.data     = {}
+        self.misc     = {} #TODO
+        self.keyGroup = None
+
+    def addSubgroup(self, name):
+        newgroup = dataGroup()
+        self.subGroup[name] = newgroup
+        return newgroup
+        
+    def addDataSector(self, sectorID, data):
+        self.data[sectorID] = data
+    
+    def _toXML(self, parent):
+        datagroup = cElementTree.SubElement(parent,"keygroups")
+    
+        #TODO misc
+        
+        #TODO data
+        
+        #TODO subgroup
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
         

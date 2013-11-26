@@ -8,18 +8,18 @@
 <!ELEMENT firmware (#PCDATA) >
 
 <!-- environment -->
-<!ELEMENT environment (date, time, position, altitude, placename)>
+<!ELEMENT environment (date, time, position, altitude, placename, owner)>
 <!ELEMENT date (#PCDATA) >
 <!ELEMENT time (#PCDATA) >
 <!ELEMENT position (#PCDATA) >
 <!ELEMENT altitude (#PCDATA) >
 <!ELEMENT placename (#PCDATA) >
+<!ELEMENT owner (#PCDATA) >
 
 <!-- misc -->
 <!ELEMENT misc (item*)>
-<!ELEMENT miscitem (EMPTY) >
+<!ELEMENT miscitem (#PCDATA) >
 <!ATTLIST miscitem key ID #REQUIRED>
-<!ATTLIST miscitem value CDATA #REQUIRED>
 
 <!-- taginfo -->
 <!ELEMENT taginfo (standard, pixnn, pixmm, uid)>
@@ -32,7 +32,6 @@
 <!ELEMENT keystore (key*)>
 <!ELEMENT key (#PCDATA)>
 <!ATTLIST key id ID #REQUIRED>
-<!ATTLIST key name CDATA #REQUIRED>
 
 <!-- keygroup -->
 <!ELEMENT keygroups (keygroup*)>
