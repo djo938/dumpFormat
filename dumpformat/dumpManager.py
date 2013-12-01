@@ -34,9 +34,22 @@
 from exception import dumpManagerException
 import os
 import datetime
-import xml.etree.cElementTree
+from xml.etree import cElementTree
 
-MISC_RESERVED_KEYWORD = ["date", "time", "position", "altitude", "location", "owner"] #... complete if necessary    
+def indent(elem, level=0):
+    i = "\n" + level*"  "
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + "  "
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+        for elem in elem:
+            indent(elem, level+1)
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
 
 def byteListToString(blist):
     return ' '.join('0x{:02x}'.format(x) for x in blist)
@@ -50,12 +63,27 @@ def isValidByte(b):
 def isAValidByteList(byteList):
     if byteList == None or not hasattr(byteList, '__iter__') or len(byteList) == 0:
         return False
-        
+    
     for b in byteList:
         if b == None or type(b) != int or b < 0 or b > 256:
             return False
-            
+    
     return True 
+
+def buildXMLList(parent, dico, dicoName, itemName = None, keyName = None):
+    misc = cElementTree.SubElement(parent,dicoName)
+    
+    if keyName == None:
+        keyName = "id"
+    
+    for k,v in dico.iteritems():
+        if itemName == None:
+            misc_sub = cElementTree.SubElement(misc, k)
+        else:
+            misc_sub = cElementTree.SubElement(misc, itemName)
+            misc_sub.set(keyName, k)
+        
+        misc_sub.text = v
 
 class dumpManager(object):
     def __init__(self, filePath = None):
@@ -63,22 +91,44 @@ class dumpManager(object):
         
         self.xml                = {}
         self.xml["misc"]        = {}
-        self.xml["reader"]      = {}
-        self.xml["environment"] = {}
-        self.xml["taginfo"]     = {}
+        
+        self.xml["reader"]                 = {}
+        self.xml["reader"]["manufacturer"] = "unknown"
+        self.xml["reader"]["model"]        = "unknown"
+        self.xml["reader"]["version"]      = "unknown"
+        self.xml["reader"]["firmware"]     = "unknown"
+        
+        self.xml["environment"]              = {}
+        self.xml["environment"]["date"]      = "unknown"
+        self.xml["environment"]["time"]      = "unknown"
+        self.xml["environment"]["position"]  = "unknown"
+        self.xml["environment"]["altitude"]  = "unknown"
+        self.xml["environment"]["placename"] = "unknown"
+        self.xml["environment"]["owner"]     = "unknown"
+        
+        self.xml["taginfo"]             = {}
+        self.xml["taginfo"]["standard"] = "unknown"
+        self.xml["taginfo"]["pixnn"]    = "unknown"
+        self.xml["taginfo"]["pixmm"]    = "unknown"
+        self.xml["taginfo"]["uid"]      = "unknown"
+        
         self.xml["keystore"]    = {}
         self.xml["keygroups"]   = {}
         self.xml["data"]        = dataGroup()
     
     def setFilePath(self, filePath):
-        if filePath == None or type(filePath) == str or len(filePath) == 0:
+        if filePath == None:
+            self.filePath = None
+            return
+    
+        if type(filePath) != str or len(filePath) == 0:
             raise dumpManagerException("(dumpManager) setFilePath, invalid file path, it must be a non empty string.  <"+str(filePath)+">")
-            
+        
         if not os.path.exists(filePath) and not os.access(os.path.dirname(filePath), os.W_OK):
             raise dumpManagerException("(dumpManager) setFilePath, the selected file does not exist or you don't have the correct right to read.  And you don't have the right to create a file here.  <"+str(filePath)+">")
-            
-        self.filePath = filePath
         
+        self.filePath = filePath
+    
     def checkFile(self, filePath = None):
         if self.filePath == None and filePath == None:
             raise dumpManagerException("(dumpManager) load, no filePath specified")
@@ -90,9 +140,9 @@ class dumpManager(object):
         
         if not os.path.exists(fpath):
             raise dumpManagerException("(dumpManager) setFilePath, the selected file does not exist or you don't have the correct right to read.  <"+str(fpath)+">")
-            
-        #TODO check the file
         
+        #TODO check the file
+    
     def load(self, filePath = None):
         if self.filePath == None and filePath == None:
             raise dumpManagerException("(dumpManager) load, no filePath specified")
@@ -106,7 +156,7 @@ class dumpManager(object):
             raise dumpManagerException("(dumpManager) setFilePath, the selected file does not exist or you don't have the correct right to read.  <"+str(fpath)+">")
             
         #TODO load the dump in xml format
-            #qlso possible with import xml
+            #also possible with import xml
         
     def save(self, filePath = None):
         if self.filePath == None and filePath == None:
@@ -119,60 +169,34 @@ class dumpManager(object):
         
         if not os.access(os.path.dirname(filePath), os.W_OK):
             raise dumpManagerException("(dumpManager) save, you don't have the right to create a file here. Or the path is invalid : <"+str(filePath)+">")
-            
+        
         #save the dump in xml format
         root = cElementTree.Element("dump")
         
         #reader
-        reader = cElementTree.SubElement(root,"reader")
-        for k,v in self.xml["reader"].iteritems():
-            reader_sub = ET.SubElement(reader, k)
-            reader_sub.text = v
-        
-        #environment
-        env = cElementTree.SubElement(root,"environment")
-        for k,v in self.xml["environment"].iteritems():
-            env_sub = ET.SubElement(env, k)
-            env_sub.text = v
-        
-        #misc
-        misc = cElementTree.SubElement(root,"misc")
-        for k,v in self.xml["misc"].iteritems():
-            misc_sub = ET.SubElement(misc, "miscitem")
-            field2.set("key", k)
-            misc_sub.text = v
-        
-        #taginfo
-        taginfo = cElementTree.SubElement(root,"taginfo")
-        for k,v in self.xml["taginfo"].iteritems():
-            taginfo_sub = ET.SubElement(taginfo, k)
-            taginfo_sub.text = v
-        
-        #keystore
-        keystore = cElementTree.SubElement(root,"keystore")
-        for k,v in self.xml["keystore"].iteritems():
-            keystore = ET.SubElement(taginfo, "key")
-            field2.set("id", k)
-            taginfo_sub.text = v
+        buildXMLList(root, self.xml["reader"], "reader")
+        buildXMLList(root, self.xml["environment"], "environment")
+        buildXMLList(root, self.xml["misc"], "misc", "miscitem", "key")
+        buildXMLList(root, self.xml["taginfo"], "taginfo")
+        buildXMLList(root, self.xml["keystore"], "keystore", "key", "id")
         
         #keygroups
         keygroups = cElementTree.SubElement(root,"keygroups")
         for k,v in self.xml["keygroups"].iteritems():
             if len(v) == 0: #does not record empty group
                 continue
-        
-            keygroup_sub = ET.SubElement(taginfo, k)
+            
+            keygroup_sub = cElementTree.SubElement(taginfo, k)
             
             for keyname in v:
-                keyid_sub = ET.SubElement(keygroup_sub, "keyid")
-                field2.set("id", keyname)
+                keyid_sub = cElementTree.SubElement(keygroup_sub, "keyid")
+                keyid_sub.set("id", keyname)
         
         #write data
         self.xml["data"]._toXML(root)
-        
-        tree = ET.ElementTree(root)
-        tree.write(fpath)
-        
+        indent(root)
+        tree = cElementTree.ElementTree(root)
+        tree.write(fpath, "UTF-8", True)
     
     ### misc information
     
@@ -202,13 +226,12 @@ class dumpManager(object):
     
         self.xml["environment"]["location"] = str(altitude)
         
-    def setPosition(self, coord):
-        
+    def setPosition(self, coord):        
+        self.xml["environment"]["position"] = str(coord)
+    
         #TODO try to manage several coord format and always convert it in the same way
         #50.750359,3.816833 (maps)
         #XXX ??? (format gpsd)
-        
-        self.xml["environment"]["position"] = str(coord)
     
     ### date/time information
     
@@ -334,43 +357,38 @@ class dumpManager(object):
         if not isAValidByteList(data):
             raise dumpManagerException("(dumpManager) addDataSector, the data must be a non empty byte list")
     
-        #None key is already in the self.xml["data"][] ?
         self.xml["data"].addDataSector(sectorID, data)
 
 class dataGroup(object):
     def __init__(self):
         self.subGroup = {}
         self.data     = {}
-        self.misc     = {} #TODO
+        self.misc     = {}
         self.keyGroup = None
-
+    
     def addSubgroup(self, name):
         newgroup = dataGroup()
         self.subGroup[name] = newgroup
         return newgroup
-        
+    
     def addDataSector(self, sectorID, data):
         self.data[sectorID] = data
     
-    def _toXML(self, parent):
-        datagroup = cElementTree.SubElement(parent,"keygroups")
+    def addMisc(self, key, value):
+        self.misc[key] = value
     
-        #TODO misc
+    def _toXML(self, parent, name = None):
+        datagroup = cElementTree.SubElement(parent,"datagroup")
         
-        #TODO data
+        #build misc
+        if len(self.misc) > 0:
+            buildXMLList(datagroup, self.misc, "misc", "miscitem", "key") 
         
-        #TODO subgroup
+        #build data
+        buildXMLList(datagroup, self.data, "data", "dataitem", "id")            
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+        #build subgroup
+        subgroup = cElementTree.SubElement(datagroup,"subgroups")
+        for k,v in self.subGroup.iteritems():
+            v._toXML(subgroup, k)
+
