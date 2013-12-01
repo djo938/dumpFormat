@@ -29,6 +29,8 @@ class mltriesTest(unittest.TestCase):
     def test_init(self):
         self.d.save("./test.xml")
 
+    def test_
+
     def test_load(self):
         pass
         
