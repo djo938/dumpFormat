@@ -17,12 +17,17 @@
 #along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 #TODO
+    #utiliser hexList aux endroits opportuns
+    #lors de la generation du xml, ajouter les fonctions str() aux endroits opportuns
     #-comment structure le stockage en memoire pour pouvoir le reconvertir facilement et rapidement en xml?
         #afin d'eviter les appels recursifs pour generer la structure sur fichier
         #et aussi pouvoir faire des recherches rapidement en mémoire
         #avec des dico ?
             #les clés doivent rester unique
             #faire une hierarchie de dico
+        #genre stocker les paths ?
+            #/aaa/ddd/vvv/ ?
+        
     #be able to unset value (set to None ?)
     #allow sub data group if data at the root ? (None group name)
         #and the opposite allow data if subgroup ?
@@ -37,6 +42,7 @@ from exception import dumpManagerException
 import os
 import datetime
 from xml.etree import cElementTree
+import dateutil.parser #TODO XXX announce/install the depedency XXX
 
 def indent(elem, level=0):
     i = "\n" + level*"  "
@@ -85,7 +91,10 @@ def buildXMLList(parent, dico, dicoName, itemName = None, keyName = None):
             misc_sub = cElementTree.SubElement(misc, itemName)
             misc_sub.set(keyName, k)
         
-        misc_sub.text = v
+        if isinstance(v, datetime.datetime):
+            misc_sub.text = v.isoformat()
+        else:
+            misc_sub.text = str(v)
 
 class hexList(list):
     def __init__(self, value = None):
@@ -161,7 +170,7 @@ class hexList(list):
         
         list.extend(self, values)
         
-    def insert(self, index, value): #TODO
+    def insert(self, index, value):
         if not isValidByte(value):
             try:
                 list.insert(self, index, int(value, 16))
@@ -206,6 +215,7 @@ class hexList(list):
     def __str__(self):
         return ' '.join('0x{:02x}'.format(x) for x in self)
 
+
 class dump(object):
     def __init__(self):
         self.xml                = {}
@@ -218,8 +228,7 @@ class dump(object):
         self.xml["reader"]["firmware"]     = "unknown"
         
         self.xml["environment"]              = {}
-        self.xml["environment"]["date"]      = "unknown"
-        self.xml["environment"]["time"]      = "unknown"
+        self.xml["environment"]["datetime"]  = datetime.datetime.now()
         self.xml["environment"]["position"]  = "unknown"
         self.xml["environment"]["altitude"]  = "unknown"
         self.xml["environment"]["placename"] = "unknown"
@@ -238,6 +247,8 @@ class dump(object):
     ### misc information
     
     def isExtraInformation(self, informationName):
+        #TODO informationName is hashable + stringable ?
+    
         pass #TODO
     
     def getExtraInformation(self, informationName):
@@ -270,80 +281,93 @@ class dump(object):
         self.xml["environment"]["location"] = locationDescription
     
     def getAltitude(self):
-        return self.xml["environment"]["location"]
+        return self.xml["environment"]["altitude"]
     
     def getAltitudeFloat(self):
-        pass #TODO
-    
-    #TODO altitude mesure unity
-    
+        """
+        
+        @raise ValueError: if the location stored is not a valid float
+        """
+        return float(self.xml["environment"]["altitude"])
+        
     def setAltitude(self, altitude):
         if altitude == None or type(altitude) != int or altitude < -10000 or altitude > 10000:
             raise dumpManagerException("(dumpManager) setAltitude, the owner must be a valid string")
     
-        self.xml["environment"]["location"] = str(altitude)
+        self.xml["environment"]["altitude"] = str(altitude)
+    
+    def getAltitudeUnity(self):
+        return self.xml["environment"]["altitudeUnity"]
+        
+    def setAltitudeUnity(self, unity = "M"):
+        if locationDescription == None or type(locationDescription) == str:
+            raise dumpManagerException("(dumpManager) setAltitudeUnity, the altitude unity must be a valid string")
+    
+        self.xml["environment"]["altitudeUnity"] = unity
     
     def getPosition(self):
         return self.xml["environment"]["position"]
     
-    def getPositionFloat(self):
-        pass #TODO
-    
     def setPosition(self, coord):        
-        self.xml["environment"]["position"] = str(coord)
+        #init a coord object
+        if not isinstance(coord, gpsCoordinates):
+            coord = gpsCoordinates(coord)
     
-        #TODO try to manage several coord format and always convert it in the same way
-        #50.750359,3.816833 (maps)
-        #XXX ??? (format gpsd)
-    
+        self.xml["environment"]["position"] = coord
+
     ### date/time information
+        #XXX for the parsing : isinstance(dateutil.parser.parse(string), datetime.datetime) == True
+        
+    def getDateString(self):
+        return self.xml["environment"]["datetime"].date().isoformat()
     
     def getDate(self):
-        return self.xml["environment"]["date"]
-    
-    def getDateObject(self):
-        pass #TODO
+        return dateutil.parser.parse(self.xml["environment"]["datetime"]).date() 
     
     def setDate(self, date):
-        if date == None or not isinstance(date, datetime.date):
+        if type(date) == str:
+            self.xml["environment"]["datetime"] = datetime.combine(dateutil.parser.parse(date).date(), self.xml["environment"]["datetime"].timez())
+        elif isinstance(date, datetime.date):
+            self.xml["environment"]["datetime"] = datetime.combine(date, self.xml["environment"]["datetime"].timez())
+        else:
             raise dumpManagerException("(dumpManager) setDate, the date must be an instance of datetime.date") 
-        
-        self.xml["environment"]["date"] = date.isoformat()
+    
+    def getTimeString(self):
+        return self.xml["environment"]["datetime"].time().isoformat()
     
     def getTime(self):
-        return self.xml["environment"]["time"] #TODO return time object or string ?
+        return self.xml["environment"]["datetime"].time()
     
-    def getTimeObject(self):
-        pass #TODO
+    def getDateTimeString(self):
+        return self.xml["environment"]["datetime"].isoformat()
     
     def getDateTimeObject(self):
-        pass #TODO
+        return self.xml["environment"]["datetime"]
     
     def setTime(self, time):
-        if time == None or not isinstance(time, datetime.time):
+        if type(time) == str:
+            self.xml["environment"]["datetime"] = datetime.combine(self.xml["environment"]["datetime"].date(), dateutil.parser.parse(time).time())
+        elif isinstance(time, datetime.time) :
+            self.xml["environment"]["datetime"] = datetime.combine(self.xml["environment"]["datetime"].date(), time)
+        else:
             raise dumpManagerException("(dumpManager) setTime, the time must be an instance of datetime.time") 
-        
-        self.xml["environment"]["time"] = time.isoformat()
-        
+
     def setDateTime(self, dtime):
-        if dtime == None or not isinstance(dtime, datetime.datetime):
+        if type(dtime) == str:
+            self.xml["environment"]["datetime"] = dateutil.parser.parse(dtime)
+        elif isinstance(dtime, datetime.datetime):
+            self.xml["environment"]["datetime"] = dtime
+        else:
             raise dumpManagerException("(dumpManager) setDateTime, the dtime must be an instance of datetime.datetime")
-        
-        self.xml["environment"]["date"] = dtime.date().isoformat()
-        self.xml["environment"]["time"] = dtime.time().isoformat()
-        
+
     def setCurrentDate(self):
-        d = datetime.now()
-        self.xml["environment"]["date"] = d.date().isoformat()
+        self.xml["environment"]["datetime"] = datetime.combine(datetime.datetime.now().date(), self.xml["environment"]["datetime"].timez())
         
     def setCurrentTime(self):
-        d = datetime.now()
-        self.xml["environment"]["time"] = d.time().isoformat()
+        self.xml["environment"]["datetime"] = datetime.combine(self.xml["environment"]["datetime"].date(), datetime.datetime.now().timez())
         
     def setCurrentDatetime(self):
-        d = datetime.now()
-        self.xml["environment"]["date"] = d.date().isoformat()
-        self.xml["environment"]["time"] = d.time().isoformat()
+        self.xml["environment"]["datetime"] = datetime.datetime.now()
     
     ### tag information
     
@@ -356,11 +380,13 @@ class dump(object):
     
         self.xml["taginfo"]["standard"] = standard
     
-    def getUID(self):
+    #TODO utiliser HexList pour l'UID
+    
+    def getUID(self): 
         return self.xml["taginfo"]["uid"]
     
-    def getUIDHexArray(self):
-        pass #TODO
+    def getUIDString(self):
+        return str(self.xml["taginfo"]["uid"])
     
     def setUID(self, uid):
         if not isAValidByteList(uid):
@@ -385,10 +411,18 @@ class dump(object):
         return self.xml["taginfo"]["pixmm"]
     
     def getPixNNInteger(self):
-        pass #TODO
+        """
         
+        raise ValueError: if pixnn is not a valid decimal integer
+        """
+        return int(self.xml["taginfo"]["pixnn"])
+    
     def getPixMMInteger(self):
-        pass #TODO
+        """
+        
+        raise ValueError: if pixmm is not a valid decimal integer
+        """
+        pass int(self.xml["taginfo"]["pixmm"])
     
     ### reader information
     
@@ -430,6 +464,7 @@ class dump(object):
         
     ### keystore
     
+    #TODO utiliser hexArray pour les cles
     def createKey(self, keyName, value):
         if version == None or type(version) == str:
             raise dumpManagerException("(dumpManager) setReaderFirmwareVersion, the version must be a valid string")
@@ -439,10 +474,10 @@ class dump(object):
         
         self.xml["keystore"][keyName] = byteListToString(value)
     
-    def getKey(self, keyName):
+    def getKeyString(self, keyName):
         pass #TODO
     
-    def getKeyHexArray(self, keyName):
+    def getKey(self, keyName):
         pass #TODO
     
     def createKeyGroup(self, keyGroupName):
@@ -472,6 +507,8 @@ class dump(object):
             raise dumpManagerException("(dumpManager) addDataGroup, the group name must be a valid string")
             
         self.xml["data"].addSubgroup(groupName)
+    
+    #TODO utiliser hexArray pour data
     
     def addDataSector(self, sectorID, data):
         if not isAValidByteList(data):
