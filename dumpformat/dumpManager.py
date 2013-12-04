@@ -16,30 +16,13 @@
 #You should have received a copy of the GNU General Public License
 #along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#TODO
-    #utiliser hexList aux endroits opportuns
-    #lors de la generation du xml, ajouter les fonctions str() aux endroits opportuns
-    #-comment structure le stockage en memoire pour pouvoir le reconvertir facilement et rapidement en xml?
-        #afin d'eviter les appels recursifs pour generer la structure sur fichier
-        #et aussi pouvoir faire des recherches rapidement en mémoire
-        #avec des dico ?
-            #les clés doivent rester unique
-            #faire une hierarchie de dico
-        #genre stocker les paths ?
-            #/aaa/ddd/vvv/ ?
-        
-    #be able to unset value (set to None ?)
-    #allow sub data group if data at the root ? (None group name)
-        #and the opposite allow data if subgroup ?
-    #write empty data group ?
-        #yes ?
-            #print warning ?
-    #what about the empty string everywhere?, some of them must be non empty
-        #empty is "unknow"
+#XXX
     #http://docs.python.org/2/library/xml.etree.elementtree.html
+    #gpsCoordinates
 
 from exception import dumpManagerException
 import os
+#import collections #isinstance(informationName, collections.Hashable)
 import datetime
 from xml.etree import cElementTree
 import dateutil.parser #TODO XXX announce/install the depedency XXX
@@ -215,6 +198,12 @@ class hexList(list):
     def __str__(self):
         return ' '.join('0x{:02x}'.format(x) for x in self)
 
+    #can use __getslice
+    #def getSectorByteArrayFromTo(self, sectorID, startingByte=0, size=None):
+    #    pass    
+    
+    def getSectorBitStringFromTo(self, startingByte=0, size=None):
+        pass #TODO voir le code dans m_extractor
 
 class dump(object):
     def __init__(self):
@@ -236,9 +225,9 @@ class dump(object):
         
         self.xml["taginfo"]             = {}
         self.xml["taginfo"]["standard"] = "unknown"
-        self.xml["taginfo"]["pixnn"]    = "unknown"
-        self.xml["taginfo"]["pixmm"]    = "unknown"
-        self.xml["taginfo"]["uid"]      = "unknown"
+        self.xml["taginfo"]["pixnn"]    = 0
+        self.xml["taginfo"]["pixss"]    = 0
+        self.xml["taginfo"]["uid"]      = hexList()
         
         self.xml["keystore"]    = {}
         self.xml["keygroups"]   = {}
@@ -247,73 +236,92 @@ class dump(object):
     ### misc information
     
     def isExtraInformation(self, informationName):
-        #TODO informationName is hashable + stringable ?
-    
-        pass #TODO
+        #informationName is hashable + stringable ?
+            #need to be hashable because it is stored into a directory
+            #need to be stringable because it will be stored in xml text file
+        
+        if not hasattr(informationName,"__str__"):
+            raise dumpManagerException("(dumpManager) isExtraInformation, the information name must be able to be convert into string")
+        
+        return str(informationName) in self.xml["misc"]
     
     def getExtraInformation(self, informationName):
-        pass #TODO
+        if not hasattr(informationName,"__str__"):
+            raise dumpManagerException("(dumpManager) isExtraInformation, the information name must be able to be convert into string")
+            
+        if not str(informationName) in self.xml["misc"]:
+            raise dumpManagerException("(dumpManager) isExtraInformation, the information name is not in the misc dictionnary")
+            
+        #return value
+        return self.xml["misc"][str(informationName)] 
     
-    def addExtraInformation(self, informationName, informationValue):
-        if informationName == None or type(informationName) == str:
-            raise dumpManagerException("(dumpManager) setOwner, the information name must be a valid string")
+    def setExtraInformation(self, informationName, informationValue):
+        if not hasattr(informationName,"__str__"):
+            raise dumpManagerException("(dumpManager) setExtraInformation, the information name must be able to be convert into string")
+        
+        if not hasattr(informationValue,"__str__"):
+            raise dumpManagerException("(dumpManager) setExtraInformation, the information value must be able to be convert into string")
+        
+        self.xml["misc"][str(informationName)] = str(informationValue)
 
-        self.xml["misc"][informationName] = str(informationValue)
+    def unsetExtraInformation(self, informationName):
+        if not hasattr(informationName,"__str__"):
+            return
+            
+        if str(informationName) in self.xml["misc"]:
+            del self.xml["misc"][str(informationName)]
 
     ### tag environment informations
+    
+    def _setString(self, parent, key, value):
+        if value == None or type(value) != str:
+            raise dumpManagerException("(dumpManager) setString, the "+key+" must be a valid string")
+    
+        self.xml[parent][key] = value
     
     def getOwner(self):
         return self.xml["environment"]["owner"]
     
     def setOwner(self, owner):
-        if owner == None or type(owner) == str:
-            raise dumpManagerException("(dumpManager) setOwner, the owner must be a valid string")
-    
-        self.xml["environment"]["owner"] = owner
+        self._setString("environment", "owner", owner)
     
     def getLocation(self):
         return self.xml["environment"]["location"]
     
     def setLocation(self, locationDescription):
-        if locationDescription == None or type(locationDescription) == str:
-            raise dumpManagerException("(dumpManager) setLocation, the location must be a valid string")
-    
-        self.xml["environment"]["location"] = locationDescription
+        self._setString("environment", "location", locationDescription)
     
     def getAltitude(self):
         return self.xml["environment"]["altitude"]
     
     def getAltitudeFloat(self):
-        """
-        
-        @raise ValueError: if the location stored is not a valid float
-        """
-        return float(self.xml["environment"]["altitude"])
+        return self.xml["environment"]["altitude"]
         
     def setAltitude(self, altitude):
-        if altitude == None or type(altitude) != int or altitude < -10000 or altitude > 10000:
-            raise dumpManagerException("(dumpManager) setAltitude, the owner must be a valid string")
+        if altitude == None or (type(altitude) != int and type(altitude) != float) or altitude < -10000 or altitude > 10000:
+            raise dumpManagerException("(dumpManager) setAltitude, invalid altitude")
     
-        self.xml["environment"]["altitude"] = str(altitude)
+        self.xml["environment"]["altitude"] = float(altitude)
     
     def getAltitudeUnity(self):
         return self.xml["environment"]["altitudeUnity"]
         
     def setAltitudeUnity(self, unity = "M"):
-        if locationDescription == None or type(locationDescription) == str:
-            raise dumpManagerException("(dumpManager) setAltitudeUnity, the altitude unity must be a valid string")
+        #TODO limit the altitude possibility (M, F, ) #XXX voir aussi ce que raconte le gpsd
     
-        self.xml["environment"]["altitudeUnity"] = unity
+        self._setString("environment", "altitudeUnity", unity)
     
     def getPosition(self):
         return self.xml["environment"]["position"]
     
     def setPosition(self, coord):        
         #init a coord object
-        if not isinstance(coord, gpsCoordinates):
-            coord = gpsCoordinates(coord)
-    
-        self.xml["environment"]["position"] = coord
+        if isinstance(coord, gpsCoordinates)
+            self.xml["environment"]["position"] = coord
+        elif type(coord) == str:
+            self.xml["environment"]["position"] = gpsCoordinates(coord)
+        else:
+            raise dumpManagerException("(dumpManager) setPosition, invalid position parameter, waiting a gpsCoordinates or a string, got "+str(type(coord)))
 
     ### date/time information
         #XXX for the parsing : isinstance(dateutil.parser.parse(string), datetime.datetime) == True
@@ -375,12 +383,7 @@ class dump(object):
         return self.xml["taginfo"]["standard"]
     
     def setCommunicationStandard(self, standard):
-        if locationDescription == None or type(locationDescription) == str:
-            raise dumpManagerException("(dumpManager) setLocation, the owner must be a valid string")
-    
-        self.xml["taginfo"]["standard"] = standard
-    
-    #TODO utiliser HexList pour l'UID
+        self._setString("taginfo", "standard", standard)
     
     def getUID(self): 
         return self.xml["taginfo"]["uid"]
@@ -389,26 +392,23 @@ class dump(object):
         return str(self.xml["taginfo"]["uid"])
     
     def setUID(self, uid):
-        if not isAValidByteList(uid):
-            raise dumpManagerException("(dumpManager) setUID, the uid must be a non empty byte list")
-            
-        self.xml["taginfo"]["uid"] = byteListToString(uid)
+        self.xml["taginfo"]["uid"] = hexList(uid)
     
-    def setPIX(self, nn, mm):
+    def setPIX(self, nn, ss):
         if not isValidByte(nn):
             raise dumpManagerException("(dumpManager) setPIX, the nn must be a valid byte value, <"+str(nn)+"> is not valid")
         
-        if not isValidByte(mm):
-            raise dumpManagerException("(dumpManager) setPIX, the mm must be a valid byte value, <"+str(mm)+"> is not valid")
+        if not isValidByte(ss):
+            raise dumpManagerException("(dumpManager) setPIX, the ss must be a valid byte value, <"+str(ss)+"> is not valid")
         
-        self.xml["taginfo"]["pixnn"] = str(nn)
-        self.xml["taginfo"]["pixmm"] = str(mm)
+        self.xml["taginfo"]["pixnn"] = nn
+        self.xml["taginfo"]["pixss"] = ss
     
     def getPixNN(self):
         return self.xml["taginfo"]["pixnn"]
         
-    def getPixMM(self):
-        return self.xml["taginfo"]["pixmm"]
+    def getPixSS(self):
+        return self.xml["taginfo"]["pixss"]
     
     def getPixNNInteger(self):
         """
@@ -417,12 +417,12 @@ class dump(object):
         """
         return int(self.xml["taginfo"]["pixnn"])
     
-    def getPixMMInteger(self):
+    def getPixSSInteger(self):
         """
         
-        raise ValueError: if pixmm is not a valid decimal integer
+        raise ValueError: if pixss is not a valid decimal integer
         """
-        pass int(self.xml["taginfo"]["pixmm"])
+        pass int(self.xml["taginfo"]["pixss"])
     
     ### reader information
     
@@ -430,75 +430,65 @@ class dump(object):
         return self.xml["reader"]["manufacturer"]
     
     def setReaderManufacturer(self, manufacturer):
-        if manufacturer == None or type(manufacturer) == str:
-            raise dumpManagerException("(dumpManager) setReaderManufacturer, the manufacturer must be a valid string")
-    
-        self.xml["reader"]["manufacturer"] = manufacturer
+        self._setString("reader", "manufacturer", manufacturer)
     
     def getReaderModel(self):
         return self.xml["reader"]["model"]
     
     def setReaderModel(self, model):
-        if model == None or type(model) == str:
-            raise dumpManagerException("(dumpManager) setReaderModel, the model must be a valid string")
-    
-        self.xml["reader"]["model"] = manufacturer
+        self._setString("reader", "model", model)
     
     def getReaderVersion(self):
         return self.xml["reader"]["version"]
     
     def setReaderVersion(self, version):
-        if version == None or type(version) == str:
-            raise dumpManagerException("(dumpManager) setReaderVersion, the version must be a valid string")
-            
-        self.xml["reader"]["version"] = manufacturer
+        self._setString("reader", "version", version)
     
     def getReaderFirmwareVersion(self)
         return self.xml["reader"]["firmware"]
     
     def setReaderFirmwareVersion(self, version):
-        if version == None or type(version) == str:
-            raise dumpManagerException("(dumpManager) setReaderFirmwareVersion, the version must be a valid string")
-            
-        self.xml["reader"]["firmware"] = manufacturer
+        self._setString("reader", "firmware", version)
         
     ### keystore
     
-    #TODO utiliser hexArray pour les cles
-    def createKey(self, keyName, value):
-        if version == None or type(version) == str:
-            raise dumpManagerException("(dumpManager) setReaderFirmwareVersion, the version must be a valid string")
-            
-        if not isAValidByteList(value):
-            raise dumpManagerException("(dumpManager) createKey, the key value must be a non empty byte list")
-        
-        self.xml["keystore"][keyName] = byteListToString(value)
+    def setKey(self, keyName, value):
+        self.xml["keystore"][keyName] = hexList(value)
+    
+    def isKeyExist(self, keyName):
+        return keyName in self.xml["keystore"]
     
     def getKeyString(self, keyName):
-        pass #TODO
+        return str(self.xml["keystore"][keyName])
     
     def getKey(self, keyName):
-        pass #TODO
+        self.xml["keystore"][keyName]
     
     def createKeyGroup(self, keyGroupName):
         if version == None or type(version) == str:
             raise dumpManagerException("(dumpManager) createKeyGroup, the version must be a valid string")
 
-        self.xml["keygroups"][keyGroupName] = []
+        self.xml["keygroups"][keyGroupName] = {}
         
     def associateKeyAndGroup(self, keyName, keyGroupName):
         #keyGroupName must exist
         if keyGroupName not in self.xml["keygroups"]:
-            raise dumpManagerException("(dumpManager) associateKeyAndGroup, the group name does not exist")
+            self.xml["keygroups"][keyGroupName] = {} #if not, create it
         
         #keyName must exist
         if keyName not in self.xml["keystore"]:
             raise dumpManagerException("(dumpManager) associateKeyAndGroup, the key name does not exist")
     
-        self.xml["keygroups"][keyGroupName].append(keyName)
+        self.xml["keygroups"][keyGroupName][keyName] = True
     
     def getKeysNameInGroup(self, keyGroupName):
-        pass #TODO
+        if keyGroupName not in self.xml["keygroups"]:
+            raise dumpManagerException("(dumpManager) getKeysNameInGroup, the key group name does not exist")
+    
+        return self.xml["keygroups"][keyGroupName].keys()
+    
+    def isKeyGroupNameExist(self, keyGroupName)
+        return keyGroupName in self.xml["keygroups"]
     
     ### data management
     
@@ -508,19 +498,31 @@ class dump(object):
             
         self.xml["data"].addSubgroup(groupName)
     
-    #TODO utiliser hexArray pour data
-    
     def addDataSector(self, sectorID, data):
         if not isAValidByteList(data):
             raise dumpManagerException("(dumpManager) addDataSector, the data must be a non empty byte list")
     
         self.xml["data"].addDataSector(sectorID, data)
 
-    def getDataGroup(self, path):
+    def getDataGroup(self, path=None):
         #path will be something like / or /toto/titi/ or /toto/titi or toto or ...
-    
-        pass #TODO
-    
+        
+        if path == None or type(path) != str:
+            raise dumpManagerException("(dumpManager) getDataGroup, invalid data path, must be a string")
+        
+        path_tokens = path.split("/")
+        currentDataGroup = self.xml["data"]
+        
+        for token in path_tokens:
+            if len(token) == 0: #don't care about empty token path
+                continue
+        
+            if token in currentDataGroup.subGroup:
+                currentDataGroup = currentDataGroup.subGroup[token]
+            else:
+                return None
+        
+        return currentDataGroup
 
 class dumpManager(object):    
     def checkFile(self, filePath):
@@ -531,7 +533,16 @@ class dumpManager(object):
             raise dumpManagerException("(dumpManager) checkFile, the selected file does not exist or you don't have the correct right to read.  <"+str(filePath)+">")
         
         #TODO check the file
-    
+
+    #-comment structure le stockage en memoire pour pouvoir le reconvertir facilement et rapidement en xml?
+        #afin d'eviter les appels recursifs pour generer la structure sur fichier
+        #et aussi pouvoir faire des recherches rapidement en mémoire
+        #avec des dico ?
+            #les clés doivent rester unique
+            #faire une hierarchie de dico
+        #genre stocker les paths ?
+            #/aaa/ddd/vvv/ ?
+
     def load(self, filePath):
         if filePath == None and type(filePath) != str:
             raise dumpManagerException("(dumpManager) load, invalid file path")
@@ -575,6 +586,8 @@ class dumpManager(object):
         
         #write data
         dump.xml["data"]._toXML(root)
+        #TODO include DTD
+        
         indent(root)
         tree = cElementTree.ElementTree(root)
         tree.write(fpath, "UTF-8", True)
@@ -593,23 +606,14 @@ class dataGroup(object):
         return newgroup
     
     def addDataSector(self, sectorID, data):
-        self.data[sectorID] = data
+        self.data[sectorID] = hexList(data)
     
     def addMisc(self, key, value):
         self.misc[key] = value
     
     def getSector(self, sectorID):
-        pass #TODO
+        return self.data[sectorID]
         
-    def getSectorByteArray(self, sectorID):
-        pass #TODO
-        
-    def getSectorByteArrayFromTo(self, sectorID, startingByte=0, size=None):
-        pass #TODO    
-    
-    def getSectorBitStringFromTo(self, sectorID, startingByte=0, size=None):
-        pass #TODO 
-    
     def _toXML(self, parent, name = None):
         datagroup = cElementTree.SubElement(parent,"datagroup")
         
