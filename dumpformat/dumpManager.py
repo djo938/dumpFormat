@@ -285,9 +285,9 @@ class dump(object):
         
         self.xml["environment"]              = {}
         self.xml["environment"]["datetime"]  = datetime.datetime.now()
-        self.xml["environment"]["position"]  = "unknown"
-        self.xml["environment"]["altitude"]  = "unknown"
-        self.xml["environment"]["placename"] = "unknown"
+        self.xml["environment"]["position"]  = "unknown" #TODO tuple(lat, lon, dtime) => <position dtime="">lat, lon</position>
+        self.xml["environment"]["altitude"]  = "unknown" #TODO tuple(lat, lon, dtime) => <altitude dtime="" unit="">altitude</altitude>
+        self.xml["environment"]["placename"] = "unknown" #TODO same as altitude and position
         self.xml["environment"]["owner"]     = "unknown"
         
         self.xml["taginfo"]             = {}
@@ -598,10 +598,11 @@ class dump(object):
         return currentDataGroup
 
 class dataRight(object):
+    
     def __init__(self):
-        self.locked = None
-        self.read   = None
-        self.write  = None
+        self.locked = None #data were writable and now are only readable
+        self.read   = None #data are readable
+        self.write  = None #data are writable
         
     #TODO
 
