@@ -27,6 +27,73 @@ import datetime
 from xml.etree import cElementTree
 import dateutil.parser #TODO XXX announce/install the depedency XXX
 
+def checkFile(filePath):
+    if filePath == None and type(filePath) != str:
+        raise dumpManagerException("(dumpManager) checkFile, invalid file path")
+    
+    if not os.path.exists(filePath):
+        raise dumpManagerException("(dumpManager) checkFile, the selected file does not exist or you don't have the correct right to read.  <"+str(filePath)+">")
+    
+    #TODO check the file
+
+#-comment structure le stockage en memoire pour pouvoir le reconvertir facilement et rapidement en xml?
+    #afin d'eviter les appels recursifs pour generer la structure sur fichier
+    #et aussi pouvoir faire des recherches rapidement en mémoire
+    #avec des dico ?
+        #les clés doivent rester unique
+        #faire une hierarchie de dico
+    #genre stocker les paths ?
+        #/aaa/ddd/vvv/ ?
+
+def loadDump(filePath):
+    if filePath == None and type(filePath) != str:
+        raise dumpManagerException("(dumpManager) load, invalid file path")
+    
+    if not os.path.exists(fpath):
+        raise dumpManagerException("(dumpManager) load, the selected file does not exist or you don't have the correct right to read.  <"+str(fpath)+">")
+        
+    #TODO load the dump in xml format
+        #also possible with import xml
+    
+    #TODO return a dump object
+    
+def saveDump(dump, filePath):
+    if filePath == None and type(filePath) != str:
+        raise dumpManagerException("(dumpManager) save, invalid file path")
+    
+    if not os.access(os.path.dirname(filePath), os.W_OK):
+        raise dumpManagerException("(dumpManager) save, you don't have the right to create a file here. Or the path is invalid : <"+str(filePath)+">")
+    
+    #save the dump in xml format
+    root = cElementTree.Element("dump")
+    
+    #reader
+    buildXMLList(root, dump.xml["reader"], "reader")
+    buildXMLList(root, dump.xml["environment"], "environment")
+    buildXMLList(root, dump.xml["misc"], "misc", "miscitem", "key")
+    buildXMLList(root, dump.xml["taginfo"], "taginfo")
+    buildXMLList(root, dump.xml["keystore"], "keystore", "key", "id")
+    
+    #keygroups
+    keygroups = cElementTree.SubElement(root,"keygroups")
+    for k,v in dump.xml["keygroups"].iteritems():
+        if len(v) == 0: #does not record empty group
+            continue
+        
+        keygroup_sub = cElementTree.SubElement(taginfo, k)
+        
+        for keyname in v:
+            keyid_sub = cElementTree.SubElement(keygroup_sub, "keyid")
+            keyid_sub.set("id", keyname)
+    
+    #write data
+    dump.xml["data"]._toXML(root)
+    #TODO include DTD
+    
+    indent(root)
+    tree = cElementTree.ElementTree(root)
+    tree.write(fpath, "UTF-8", True)
+
 def indent(elem, level=0):
     i = "\n" + level*"  "
     if len(elem):
@@ -42,8 +109,8 @@ def indent(elem, level=0):
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
 
-def byteListToString(blist):
-    return ' '.join('0x{:02x}'.format(x) for x in blist)
+def byteListToString(blist, space = " "):
+    return space.join('0x{:02x}'.format(x) for x in blist)
 
 def isValidByte(b):
     if b == None or type(b) != int or b < 0 or b > 256:
@@ -288,7 +355,9 @@ class dump(object):
     def getLocation(self):
         return self.xml["environment"]["location"]
     
-    def setLocation(self, locationDescription):
+    def setLocation(self, placename, distance, unit, distanceType, dtime):
+        #TODO
+    
         self._setString("environment", "location", locationDescription)
     
     def getAltitude(self):
@@ -297,7 +366,9 @@ class dump(object):
     def getAltitudeFloat(self):
         return self.xml["environment"]["altitude"]
         
-    def setAltitude(self, altitude):
+    def setAltitude(self, altitude, unit, fixtime):
+        #TODO
+    
         if altitude == None or (type(altitude) != int and type(altitude) != float) or altitude < -10000 or altitude > 10000:
             raise dumpManagerException("(dumpManager) setAltitude, invalid altitude")
     
@@ -314,7 +385,9 @@ class dump(object):
     def getPosition(self):
         return self.xml["environment"]["position"]
     
-    def setPosition(self, coord):        
+    def setPosition(self, lat, lon, dtime):
+        #TODO
+            
         #init a coord object
         if isinstance(coord, gpsCoordinates)
             self.xml["environment"]["position"] = coord
@@ -504,7 +577,7 @@ class dump(object):
     
         self.xml["data"].addDataSector(sectorID, data)
 
-    def getDataGroup(self, path=None):
+    def getDataGroup(self, path=""):
         #path will be something like / or /toto/titi/ or /toto/titi or toto or ...
         
         if path == None or type(path) != str:
@@ -524,74 +597,13 @@ class dump(object):
         
         return currentDataGroup
 
-class dumpManager(object):    
-    def checkFile(self, filePath):
-        if filePath == None and type(filePath) != str:
-            raise dumpManagerException("(dumpManager) checkFile, invalid file path")
+class dataRight(object):
+    def __init__(self):
+        self.locked = None
+        self.read   = None
+        self.write  = None
         
-        if not os.path.exists(filePath):
-            raise dumpManagerException("(dumpManager) checkFile, the selected file does not exist or you don't have the correct right to read.  <"+str(filePath)+">")
-        
-        #TODO check the file
-
-    #-comment structure le stockage en memoire pour pouvoir le reconvertir facilement et rapidement en xml?
-        #afin d'eviter les appels recursifs pour generer la structure sur fichier
-        #et aussi pouvoir faire des recherches rapidement en mémoire
-        #avec des dico ?
-            #les clés doivent rester unique
-            #faire une hierarchie de dico
-        #genre stocker les paths ?
-            #/aaa/ddd/vvv/ ?
-
-    def load(self, filePath):
-        if filePath == None and type(filePath) != str:
-            raise dumpManagerException("(dumpManager) load, invalid file path")
-        
-        if not os.path.exists(fpath):
-            raise dumpManagerException("(dumpManager) load, the selected file does not exist or you don't have the correct right to read.  <"+str(fpath)+">")
-            
-        #TODO load the dump in xml format
-            #also possible with import xml
-        
-        #TODO return a dump object
-        
-    def save(self, dump, filePath):
-        if filePath == None and type(filePath) != str:
-            raise dumpManagerException("(dumpManager) save, invalid file path")
-        
-        if not os.access(os.path.dirname(filePath), os.W_OK):
-            raise dumpManagerException("(dumpManager) save, you don't have the right to create a file here. Or the path is invalid : <"+str(filePath)+">")
-        
-        #save the dump in xml format
-        root = cElementTree.Element("dump")
-        
-        #reader
-        buildXMLList(root, dump.xml["reader"], "reader")
-        buildXMLList(root, dump.xml["environment"], "environment")
-        buildXMLList(root, dump.xml["misc"], "misc", "miscitem", "key")
-        buildXMLList(root, dump.xml["taginfo"], "taginfo")
-        buildXMLList(root, dump.xml["keystore"], "keystore", "key", "id")
-        
-        #keygroups
-        keygroups = cElementTree.SubElement(root,"keygroups")
-        for k,v in dump.xml["keygroups"].iteritems():
-            if len(v) == 0: #does not record empty group
-                continue
-            
-            keygroup_sub = cElementTree.SubElement(taginfo, k)
-            
-            for keyname in v:
-                keyid_sub = cElementTree.SubElement(keygroup_sub, "keyid")
-                keyid_sub.set("id", keyname)
-        
-        #write data
-        dump.xml["data"]._toXML(root)
-        #TODO include DTD
-        
-        indent(root)
-        tree = cElementTree.ElementTree(root)
-        tree.write(fpath, "UTF-8", True)
-    
+    #TODO
 
 class dataGroup(object):
     def __init__(self):
