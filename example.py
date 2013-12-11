@@ -4,11 +4,11 @@
 #example, style iso15693
 
 from datetime import datetime
-from dumpformat import saveDump, dumpManager
+from dumpformat import saveDump, dumpManager, dump, DATAGROUPFLAG_LOCKED
 
 position = (50.850207,4.391133,datetime.now(),)
 altitude = (350, "M", datetime.now(), )
-place    = ("toto land", 53, "M", datetime.now(),)
+place    = ("toto land", 53, "M", "", datetime.now(),)
 
 currentDump = dump()
 currentDump.setPosition(*position) 
@@ -24,6 +24,6 @@ currentDataGroup = currentDump.getDataGroup()
 currentDump.setExtraInformation("readType", "SINGLE READ")
 for i in range(0,23):
     currentDataGroup.addDataSector(i, [i+1, i+2, i+3, i+4])
-    currentDataGroup.addMisc(i, "Locked")
+    currentDataGroup.setSectorAttribute(i, DATAGROUPFLAG_LOCKED, True)
     
-saveDump(dump, "./dump_example.xml")
+saveDump(currentDump, "./dump_example.xml")

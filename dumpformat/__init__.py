@@ -16,4 +16,4 @@
 #You should have received a copy of the GNU General Public License
 #along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from dumpManager import dump, dumpManager, byteListToString, saveDump
+from dumpManager import dump, byteListToString, saveDump, DATAGROUPFLAG_LOCKED, DATAGROUPFLAG_READONLY, DATAGROUPFLAG_WRITABLE

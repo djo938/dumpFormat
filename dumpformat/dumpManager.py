@@ -16,25 +16,21 @@
 #You should have received a copy of the GNU General Public License
 #along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#XXX
-    #http://docs.python.org/2/library/xml.etree.elementtree.html
-    #gpsCoordinates
-
 from exception import dumpManagerException
-import os
+import os, sys
 #import collections #isinstance(informationName, collections.Hashable)
 import datetime
 from xml.etree import cElementTree
 import dateutil.parser #TODO XXX announce/install the depedency XXX
+from utils import *
 
-def checkFile(filePath):
-    if filePath == None and type(filePath) != str:
-        raise dumpManagerException("(dumpManager) checkFile, invalid file path")
-    
-    if not os.path.exists(filePath):
-        raise dumpManagerException("(dumpManager) checkFile, the selected file does not exist or you don't have the correct right to read.  <"+str(filePath)+">")
-    
-    #TODO check the file
+#TODO
+    #extend the dump class and specialise for every known card
+        #ultralight
+        #ultralight C
+        #mifare classic
+        #desfire
+        #...
 
 #-comment structure le stockage en memoire pour pouvoir le reconvertir facilement et rapidement en xml?
     #afin d'eviter les appels recursifs pour generer la structure sur fichier
@@ -92,185 +88,7 @@ def saveDump(dump, filePath):
     
     indent(root)
     tree = cElementTree.ElementTree(root)
-    tree.write(fpath, "UTF-8", True)
-
-def indent(elem, level=0):
-    i = "\n" + level*"  "
-    if len(elem):
-        if not elem.text or not elem.text.strip():
-            elem.text = i + "  "
-        if not elem.tail or not elem.tail.strip():
-            elem.tail = i
-        for elem in elem:
-            indent(elem, level+1)
-        if not elem.tail or not elem.tail.strip():
-            elem.tail = i
-    else:
-        if level and (not elem.tail or not elem.tail.strip()):
-            elem.tail = i
-
-def byteListToString(blist, space = " "):
-    return space.join('0x{:02x}'.format(x) for x in blist)
-
-def isValidByte(b):
-    if b == None or type(b) != int or b < 0 or b > 256:
-        return False
-    
-    return True 
-
-def isAValidByteList(byteList):
-    if byteList == None or not hasattr(byteList, '__iter__') or len(byteList) == 0:
-        return False
-    
-    for b in byteList:
-        if b == None or type(b) != int or b < 0 or b > 256:
-            return False
-    
-    return True 
-
-def buildXMLList(parent, dico, dicoName, itemName = None, keyName = None):
-    misc = cElementTree.SubElement(parent,dicoName)
-    
-    if keyName == None:
-        keyName = "id"
-    
-    for k,v in dico.iteritems():
-        if itemName == None:
-            misc_sub = cElementTree.SubElement(misc, k)
-        else:
-            misc_sub = cElementTree.SubElement(misc, itemName)
-            misc_sub.set(keyName, k)
-        
-        if isinstance(v, datetime.datetime):
-            misc_sub.text = v.isoformat()
-        else:
-            misc_sub.text = str(v)
-
-class hexList(list):
-    def __init__(self, value = None):
-        if value != None:
-            if type(value) == str:
-                #allowed format
-                #FFFFFfff
-                #0xFFFFFfff
-                #FF, FF,ff, ff
-                #0xFF, 0xff, 0XFF, 0Xff,
-                #0xFF 0xff 0XFF 0Xff
-                value = value.strip()
-                if len(value) > 0: #non empty string
-                    if value.count(",") > 0: #token separate with comma
-                        values = []
-                        value_splitted = value.split(",")
-                        for vs in value_splitted:
-                            values.append(int(vs,16)) #could raise valueError
-                            
-                    elif value.count(" ") > 0: #token separate with space    
-                        values = []
-                        value_splitted = value.split(" ")
-                        for vs in value_splitted:
-                            values.append(int(vs,16)) #could raise valueError
-                            
-                    else: #token agragated
-                        if value.startswith("0x") or value.startswith("0X"):
-                            value = value[2:]
-                        elif value.startswith("x") or value.startswith("X"):
-                            value = value[1:]
-                        
-                        if (len(value)%2) != 0:
-                            value = "0"+value
-                        
-                        values = []
-                        for i in range(0,len(value),2):
-                            values.append(int(value[i:i+2],16)) #could raise valueError
-                            
-                    list.__init__(self,values)
-            elif isAValidByteList(value):
-                list.__init__(self,value)
-            else:
-                raise ValueError("(hexList) __init__, need a list of byte or a byte string")
-    
-    def append(self, value):
-        if not isValidByte(value):
-            try:
-                list.append(self, int(value, 16))
-                return 
-            except ValueError:
-                pass
-            
-            raise ValueError("(hexList) append, need a byte")
-        list.append(self, value)
-        
-    def extend(self, values): 
-        if values == None or not hasattr(values, '__iter__'):
-            raise ValueError("(hexList) extend, need an iterable object")
-        
-        if not isAValidByteList(values):
-            index = 0
-            try:
-                new_values = []
-                while index < len(values):
-                    new_values.append(int(values[index],16))
-                    index += 1
-                    
-                list.extend(self, new_values)
-            except ValueError:
-                pass
-            
-            raise ValueError("(hexList) extend, not a byte item at index "+str(index))
-        
-        list.extend(self, values)
-        
-    def insert(self, index, value):
-        if not isValidByte(value):
-            try:
-                list.insert(self, index, int(value, 16))
-                return 
-            except ValueError:
-                pass
-            
-            raise ValueError("(hexList) append, need a byte")
-        list.insert(self, index, value)
-        
-    def __setitem__(self, index, value):
-        if not isValidByte(value):
-            try:
-                list.__setitem__(self, index, int(value, 16))
-                return 
-            except ValueError:
-                pass
-            
-            raise ValueError("(hexList) append, need a byte")
-        list.__setitem__(self, index, value)
-    
-    def __setslice__(self, index, jndex, values):
-        if values == None or not hasattr(values, '__iter__'):
-            raise ValueError("(hexList) extend, need an iterable object")
-        
-        if not isAValidByteList(values):
-            index = 0
-            try:
-                new_values = []
-                while index < len(values):
-                    new_values.append(int(values[index],16))
-                    index += 1
-                    
-                list.__setslice__(self, index, jndex, new_values)
-            except ValueError:
-                pass
-            
-            raise ValueError("(hexList) extend, not a byte item at index "+str(index))
-        
-        list.__setslice__(self, index, jndex, values)
-        
-    def __str__(self):
-        return ' '.join('0x{:02x}'.format(x) for x in self)
-
-    #can use __getslice
-    #def getSectorByteArrayFromTo(self, sectorID, startingByte=0, size=None):
-    #    pass    
-    
-    def getSectorBitStringFromTo(self, startingByte=0, size=None):
-        pass #TODO voir le code dans m_extractor
+    tree.write(filePath, "UTF-8", True)
 
 class dump(object):
     def __init__(self):
@@ -285,9 +103,9 @@ class dump(object):
         
         self.xml["environment"]              = {}
         self.xml["environment"]["datetime"]  = datetime.datetime.now()
-        self.xml["environment"]["position"]  = "unknown" #TODO tuple(lat, lon, dtime) => <position dtime="">lat, lon</position>
-        self.xml["environment"]["altitude"]  = "unknown" #TODO tuple(lat, lon, dtime) => <altitude dtime="" unit="">altitude</altitude>
-        self.xml["environment"]["placename"] = "unknown" #TODO same as altitude and position
+        self.xml["environment"]["position"]  = (0.0,0.0, None,) 
+        self.xml["environment"]["altitude"]  = (0.0, "M", None,)
+        self.xml["environment"]["location"] = ("", sys.maxint, "M","", None,)
         self.xml["environment"]["owner"]     = "unknown"
         
         self.xml["taginfo"]             = {}
@@ -352,50 +170,134 @@ class dump(object):
     def setOwner(self, owner):
         self._setString("environment", "owner", owner)
     
+    ##
+    
     def getLocation(self):
-        return self.xml["environment"]["location"]
+        return self.xml["environment"]["location"][0]
     
-    def setLocation(self, placename, distance, unit, distanceType, dtime):
-        #TODO
+    def setLocation(self, placename, distance, unit = "M", distanceType = None, dtime = None):
+        if not isValidInt(distance, 0, 25000):
+            raise dumpManagerException("(dumpManager) setLocation, invalid distance, must be an integer between 0 and 25000")
     
-        self._setString("environment", "location", locationDescription)
+        if type(unit) != str and unit not in ALTITUDE_UNITS:
+            raise dumpManagerException("(dumpManager) setLocationFixTime, distance unity, must be a string representation of a valid unity (M or F)")
+    
+        if distanceType != None and type(distanceType) != str:
+            raise dumpManagerException("(dumpManager) setLocationFixTime, distance type must be a valid string")
+    
+        if dtime !=None and not isinstance(dtime, datetime.datetime):
+            raise dumpManagerException("(dumpManager) setLocationFixTime, invalid fix time, must be a None value or an instance of datetime")
+    
+        self.xml["environment"]["location"] = (placename, distance, unit, distanceType, dtime,)
+    
+    def getLocationDistance(self):
+        return self.xml["environment"]["location"][1]
+    
+    def setLocationDistance(self, distance):
+        if not isValidInt(altitude, 0, 25000):
+            raise dumpManagerException("(dumpManager) setLocationDistance, invalid distance, must be an integer between 0 and 25000")
+            
+        self.xml["environment"]["location"] = (self.xml["environment"]["location"][0],distance, self.xml["environment"]["location"][2], self.xml["environment"]["location"][3], self.xml["environment"]["location"][4],)
+        
+    def getLocationDistanceUnit(self):
+        return self.xml["environment"]["location"][2]
+    
+    def setLocationDistanceUnit(self, unit = "M"):
+        if type(unit) != str and unit not in ALTITUDE_UNITS:
+            raise dumpManagerException("(dumpManager) setLocationDistanceUnit, altitude unity must be a string representation of a valid unity (M or F)")
+        
+        self.xml["environment"]["location"] = (self.xml["environment"]["location"][0], self.xml["environment"]["location"][1], unit, self.xml["environment"]["location"][3], self.xml["environment"]["location"][4],)
+        
+    def getLocationDistanceType(self):
+        return self.xml["environment"]["location"][3]
+    
+    def setLocationDistanceType(self, distanceType):
+        if type(distanceType) != str:
+            raise dumpManagerException("(dumpManager) setLocationDistanceType, distance type must be a valid string")
+    
+        self.xml["environment"]["location"] = (self.xml["environment"]["location"][0], self.xml["environment"]["location"][1], self.xml["environment"]["location"][2], distanceType, self.xml["environment"]["location"][4],)
+        
+    def getLocationFixTime(self):
+        return self.xml["environment"]["location"][4]
+    
+    def setLocationFixTime(self, dtime=None):
+        if dtime !=None and not isinstance(dtime, datetime.datetime):
+            raise dumpManagerException("(dumpManager) setLocationFixTime, invalid fix time, must be a None value or an instance of datetime")
+        
+        self.xml["environment"]["location"] = (self.xml["environment"]["location"][0], self.xml["environment"]["location"][1], self.xml["environment"]["location"][2], self.xml["environment"]["location"][3], dtime,)
+    ##
     
     def getAltitude(self):
         return self.xml["environment"]["altitude"]
     
     def getAltitudeFloat(self):
-        return self.xml["environment"]["altitude"]
+        return self.xml["environment"]["altitude"][0]
         
-    def setAltitude(self, altitude, unit, fixtime):
-        #TODO
+    def setAltitude(self, altitude, unit = "M", dtime=None):
+        if not isValidInt(altitude, -10000, 10000):
+            raise dumpManagerException("(dumpManager) setAltitude, invalid altitude, must be an integer between -10000 and 10000")
+            
+        if type(unit) != str and unit not in ALTITUDE_UNITS:
+            raise dumpManagerException("(dumpManager) setAltitude, altitude unity, must be a string representation of a valid unity (M or F)")
+            
+        #check dtime
+        if dtime !=None and not isinstance(dtime, datetime.datetime):
+            raise dumpManagerException("(dumpManager) setAltitude, invalid fix time, must be a None value or an instance of datetime")
+        
     
         if altitude == None or (type(altitude) != int and type(altitude) != float) or altitude < -10000 or altitude > 10000:
             raise dumpManagerException("(dumpManager) setAltitude, invalid altitude")
     
-        self.xml["environment"]["altitude"] = float(altitude)
+        self.xml["environment"]["altitude"] = (altitude, unit, dtime,)
     
     def getAltitudeUnity(self):
-        return self.xml["environment"]["altitudeUnity"]
+        return self.xml["environment"]["altitude"][1]
         
-    def setAltitudeUnity(self, unity = "M"):
-        #TODO limit the altitude possibility (M, F, ) #XXX voir aussi ce que raconte le gpsd
+    def setAltitudeUnity(self, unit = "M"):
+        if type(unit) != str and unit not in ALTITUDE_UNITS:
+            raise dumpManagerException("(dumpManager) setAltitudeUnity, altitude unity, must be a string representation of a valid unity (M or F)")
     
-        self._setString("environment", "altitudeUnity", unity)
+        self.xml["environment"]["altitude"] = (self.xml["environment"]["altitude"][0],unit,self.xml["environment"]["altitude"][2],)
+    
+    def getAltitudeFixTime(self):
+        return self.xml["environment"]["altitude"][2]
+
+    def setAltitudeFixTime(self, dtime = None):
+        #check dtime
+        if dtime !=None and not isinstance(dtime, datetime.datetime):
+            raise dumpManagerException("(dumpManager) setAltitudeFixTime, invalid fix time, must be an instance of datetime")
+        
+        self.xml["environment"]["altitude"] = (self.xml["environment"]["altitude"][0],self.xml["environment"]["altitude"][1], dtime,)
+    
+    ##
     
     def getPosition(self):
-        return self.xml["environment"]["position"]
+        return self.xml["environment"]["position"][0:2]
     
-    def setPosition(self, lat, lon, dtime):
-        #TODO
-            
-        #init a coord object
-        if isinstance(coord, gpsCoordinates)
-            self.xml["environment"]["position"] = coord
-        elif type(coord) == str:
-            self.xml["environment"]["position"] = gpsCoordinates(coord)
-        else:
-            raise dumpManagerException("(dumpManager) setPosition, invalid position parameter, waiting a gpsCoordinates or a string, got "+str(type(coord)))
+    def getPositionFixTime(self):
+        return self.xml["environment"]["position"][2]
 
+    def setPositionFixTime(self, dtime):
+        #check dtime
+        if not isinstance(dtime, datetime.datetime):
+            raise dumpManagerException("(dumpManager) setPositionFixTime, invalid fix time, must be a None value or an instance of datetime")
+        
+        self.xml["environment"]["position"] = (self.xml["environment"]["position"][0],self.xml["environment"]["position"][1], dtime,)
+
+    def setPosition(self, lat, lon, dtime=None):
+        #check lat/lon
+        if not isValidFloat(lat, -90.0, 90.0):
+            raise dumpManagerException("(dumpManager) setPosition, invalid latitude, must be a float between -90 and 90")
+            
+        if not isValidFloat(lon, -180.0, 180.0):
+            raise dumpManagerException("(dumpManager) setPosition, invalid longitude, must be a float between -180 and 180")
+        
+        #check dtime
+        if dtime !=None and not isinstance(dtime, datetime.datetime):
+            raise dumpManagerException("(dumpManager) setPosition, invalid fix time, must be a None value or an instance of datetime")
+        
+        self.xml["environment"]["position"] = (lat, lon, dtime,)
+        
     ### date/time information
         #XXX for the parsing : isinstance(dateutil.parser.parse(string), datetime.datetime) == True
         
@@ -477,25 +379,17 @@ class dump(object):
         self.xml["taginfo"]["pixnn"] = nn
         self.xml["taginfo"]["pixss"] = ss
     
+    def getPixNNString(self):
+        return str(self.xml["taginfo"]["pixnn"])
+        
+    def getPixSSString(self):
+        return str(self.xml["taginfo"]["pixss"])
+    
     def getPixNN(self):
         return self.xml["taginfo"]["pixnn"]
-        
+    
     def getPixSS(self):
         return self.xml["taginfo"]["pixss"]
-    
-    def getPixNNInteger(self):
-        """
-        
-        raise ValueError: if pixnn is not a valid decimal integer
-        """
-        return int(self.xml["taginfo"]["pixnn"])
-    
-    def getPixSSInteger(self):
-        """
-        
-        raise ValueError: if pixss is not a valid decimal integer
-        """
-        pass int(self.xml["taginfo"]["pixss"])
     
     ### reader information
     
@@ -517,7 +411,7 @@ class dump(object):
     def setReaderVersion(self, version):
         self._setString("reader", "version", version)
     
-    def getReaderFirmwareVersion(self)
+    def getReaderFirmwareVersion(self):
         return self.xml["reader"]["firmware"]
     
     def setReaderFirmwareVersion(self, version):
@@ -560,7 +454,7 @@ class dump(object):
     
         return self.xml["keygroups"][keyGroupName].keys()
     
-    def isKeyGroupNameExist(self, keyGroupName)
+    def isKeyGroupNameExist(self, keyGroupName):
         return keyGroupName in self.xml["keygroups"]
     
     ### data management
@@ -597,21 +491,32 @@ class dump(object):
         
         return currentDataGroup
 
-class dataRight(object):
-    
-    def __init__(self):
-        self.locked = None #data were writable and now are only readable
-        self.read   = None #data are readable
-        self.write  = None #data are writable
-        
-    #TODO
+DATAGROUPFLAG_LOCKED      = "locked"
+DATAGROUPFLAG_READONLY    = "readonly"
+DATAGROUPFLAG_WRITABLE    = "writable"
+DATAGROUPFLAG_KEYTOREAD   = "readkey"
+DATAGROUPFLAG_KEYTOWRITE  = "writekey"
+DATAGROUPFLAG_KEYTOCHANGE = "changekey"
+DATAGROUPFLAG_MASTERKEY   = "masterkey"
+DATAGROUPFLAG_KEYTOLIST   = "listkey"
+DATAGROUPFLAG_KEYA        = "keyA"
+DATAGROUPFLAG_KEYB        = "keyB"
+DATAGROUPFLAG_RAW         = "raw"
+#DATAGROUPFLAG_... #XXX add flag if necessary
+
 
 class dataGroup(object):
-    def __init__(self):
+    def __init__(self, keyGroup = None):
         self.subGroup = {}
         self.data     = {}
         self.misc     = {}
-        self.keyGroup = None
+        
+        #TODO keyGroup must exist or None
+        
+        self.keyGroup = keyGroup
+            #TODO search after a key into the keygroup then in the global keylist
+        
+        self.attributes = {}
     
     def addSubgroup(self, name):
         newgroup = dataGroup()
@@ -619,23 +524,52 @@ class dataGroup(object):
         return newgroup
     
     def addDataSector(self, sectorID, data):
-        self.data[sectorID] = hexList(data)
+        self.data[sectorID] = (hexList(data),{},)
     
     def addMisc(self, key, value):
         self.misc[key] = value
     
     def getSector(self, sectorID):
-        return self.data[sectorID]
+        return self.data[sectorID][0]
+    
+    def setSectorAttribute(self, sectorID, attribute, value):
+        #TODO check params
+    
+        self.data[sectorID][1][attribute] = value
         
+    def removeSectorAttribute(self, sectorID, attribute):
+        pass #TODO
+    
+    def setAttribute(self, attribute, value):
+        #TODO check params
+        
+        self.attributes[attribute] = value
+        
+    def removeAttribute(self, attribute):
+        pass #TODO
+    
+    def setKeyGroup(self, keyGroup):
+        pass #TODO
+    
     def _toXML(self, parent, name = None):
         datagroup = cElementTree.SubElement(parent,"datagroup")
+        #TODO write attribute
+        
+        #TODO write keygroup
         
         #build misc
         if len(self.misc) > 0:
             buildXMLList(datagroup, self.misc, "misc", "miscitem", "key") 
         
         #build data
-        buildXMLList(datagroup, self.data, "data", "dataitem", "id")            
+        data = cElementTree.SubElement(datagroup,"data")
+        for kdata,vdata in self.data.iteritems():
+            ldata = cElementTree.SubElement(data,"data")
+            ldata.set("id",str(kdata))
+            ldata.text = str(vdata[0])
+        
+            for katt, vatt in vdata[1].iteritems():
+                ldata.set(katt,str(vatt))
         
         #build subgroup
         subgroup = cElementTree.SubElement(datagroup,"subgroups")
