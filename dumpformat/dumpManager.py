@@ -159,6 +159,8 @@ class dump(object):
     ### tag environment informations
     
     def _setString(self, parent, key, value):
+        #no need to check parent or the key, this method is only used inside of the class
+    
         if value == None or type(value) != str:
             raise dumpManagerException("(dumpManager) setString, the "+key+" must be a valid string")
     
