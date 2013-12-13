@@ -187,6 +187,9 @@ class dump(object):
         if distanceType != None and type(distanceType) != str:
             raise dumpManagerException("(dumpManager) setLocationFixTime, distance type must be a valid string")
     
+        if dtime != None and (type(dtime) == str or type(dtime) == unicode):
+            dtime = dateutil.parser.parse(dtime)
+    
         if dtime !=None and not isinstance(dtime, datetime.datetime):
             raise dumpManagerException("(dumpManager) setLocationFixTime, invalid fix time, must be a None value or an instance of datetime")
     
@@ -196,7 +199,7 @@ class dump(object):
         return self.xml["environment"]["location"][1]
     
     def setLocationDistance(self, distance):
-        if not isValidInt(altitude, 0, 25000):
+        if not isValidInt(distance, 0, 25000):
             raise dumpManagerException("(dumpManager) setLocationDistance, invalid distance, must be an integer between 0 and 25000")
             
         self.xml["environment"]["location"] = (self.xml["environment"]["location"][0],distance, self.xml["environment"]["location"][2], self.xml["environment"]["location"][3], self.xml["environment"]["location"][4],)
@@ -223,6 +226,9 @@ class dump(object):
         return self.xml["environment"]["location"][4]
     
     def setLocationFixTime(self, dtime=None):
+        if dtime != None and (type(dtime) == str or type(dtime) == unicode):
+            dtime = dateutil.parser.parse(dtime)
+    
         if dtime !=None and not isinstance(dtime, datetime.datetime):
             raise dumpManagerException("(dumpManager) setLocationFixTime, invalid fix time, must be a None value or an instance of datetime")
         
@@ -236,13 +242,16 @@ class dump(object):
         return self.xml["environment"]["altitude"][0]
         
     def setAltitude(self, altitude, unit = "M", dtime=None):
-        if not isValidInt(altitude, -10000, 10000):
+        if not isValidFloat(altitude, -10000.0, 10000.0):
             raise dumpManagerException("(dumpManager) setAltitude, invalid altitude, must be an integer between -10000 and 10000")
             
         if type(unit) != str and unit not in ALTITUDE_UNITS:
             raise dumpManagerException("(dumpManager) setAltitude, altitude unity, must be a string representation of a valid unity (M or F)")
             
         #check dtime
+        if dtime != None and (type(dtime) == str or type(dtime) == unicode):
+            dtime = dateutil.parser.parse(dtime)
+        
         if dtime !=None and not isinstance(dtime, datetime.datetime):
             raise dumpManagerException("(dumpManager) setAltitude, invalid fix time, must be a None value or an instance of datetime")
         
@@ -265,6 +274,9 @@ class dump(object):
         return self.xml["environment"]["altitude"][2]
 
     def setAltitudeFixTime(self, dtime = None):
+        if dtime != None and (type(dtime) == str or type(dtime) == unicode):
+            dtime = dateutil.parser.parse(dtime)
+    
         #check dtime
         if dtime !=None and not isinstance(dtime, datetime.datetime):
             raise dumpManagerException("(dumpManager) setAltitudeFixTime, invalid fix time, must be an instance of datetime")
@@ -280,6 +292,9 @@ class dump(object):
         return self.xml["environment"]["position"][2]
 
     def setPositionFixTime(self, dtime):
+        if dtime != None and (type(dtime) == str or type(dtime) == unicode):
+            dtime = dateutil.parser.parse(dtime)
+    
         #check dtime
         if not isinstance(dtime, datetime.datetime):
             raise dumpManagerException("(dumpManager) setPositionFixTime, invalid fix time, must be a None value or an instance of datetime")
@@ -293,6 +308,9 @@ class dump(object):
             
         if not isValidFloat(lon, -180.0, 180.0):
             raise dumpManagerException("(dumpManager) setPosition, invalid longitude, must be a float between -180 and 180")
+        
+        if dtime != None and (type(dtime) == str or type(dtime) == unicode):
+            dtime = dateutil.parser.parse(dtime)
         
         #check dtime
         if dtime !=None and not isinstance(dtime, datetime.datetime):
@@ -338,9 +356,10 @@ class dump(object):
             raise dumpManagerException("(dumpManager) setTime, the time must be an instance of datetime.time") 
 
     def setDateTime(self, dtime):
-        if type(dtime) == str:
-            self.xml["environment"]["datetime"] = dateutil.parser.parse(dtime)
-        elif isinstance(dtime, datetime.datetime):
+        if dtime != None and (type(dtime) == str or type(dtime) == unicode):
+            dtime = dateutil.parser.parse(dtime)
+    
+        if isinstance(dtime, datetime.datetime):
             self.xml["environment"]["datetime"] = dtime
         else:
             raise dumpManagerException("(dumpManager) setDateTime, the dtime must be an instance of datetime.datetime")
