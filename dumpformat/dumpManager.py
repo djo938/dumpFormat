@@ -372,7 +372,7 @@ class dump(object):
         self.xml["taginfo"]["uid"] = hexList(uid)
     
     def setPIX(self, nn, ss):
-        if not isValidByte(nn):
+        if not isValidInt(nn,0,0xFFFF):
             raise dumpManagerException("(dumpManager) setPIX, the nn must be a valid byte value, <"+str(nn)+"> is not valid")
         
         if not isValidByte(ss):

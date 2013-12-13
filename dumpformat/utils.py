@@ -221,7 +221,7 @@ def buildXMLList(parent, dico, dicoName, itemName = None, keyName = None):
             misc_sub.set("distance", str(v[1]))
             misc_sub.set("unit", v[2])
             misc_sub.set("type", v[3])
-            if v[3] != None:
+            if v[4] != None:
                 misc_sub.set("fixtime", v[4].isoformat())
             
         elif k == "altitude":
